@@ -29,7 +29,7 @@ export default function ProfileCard ({ avatarUri, displayName, displayEmail, dis
         {/* Info card */}
         <View className="bg-gray-50 rounded-2xl p-5 mb-6">
           <View className="flex-row items-center justify-between py-3 border-b border-gray-200">
-            <Text className="text-gray-500 text-sm">Name</Text>
+            <Text className="text-gray-500 text-sm">Name Name</Text>
             <Text className="text-gray-900 text-sm font-semibold">
               {displayName}
             </Text>
