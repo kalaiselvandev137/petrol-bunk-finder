@@ -1,15 +1,16 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import RouteMap from '../components/RouteMap';
 import { PETROL_BRANDS, matchesBrand } from '../constants/brands';
 import { useDirections } from '../hooks/useDirections';
@@ -187,10 +188,10 @@ export default function MapScreen() {
       <View className="absolute top-0 left-0 right-0 z-10 px-4 pt-12 pb-3">
         <View className="flex-row items-center">
           <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-white shadow items-center justify-center mr-3"
+            className="w-10 h-10 rounded-full bg-white flex shadow items-center justify-center mr-3"
             onPress={() => router.back()}
           >
-            <Text className="text-gray-700 text-xl">←</Text>
+            <Ionicons name="arrow-back" size={20} color="gray" />
           </TouchableOpacity>
 
           <View className="flex-1 bg-white rounded-2xl px-4 py-3 shadow">
@@ -370,9 +371,9 @@ export default function MapScreen() {
             <Text className="text-gray-800 font-bold text-base text-center">
               ⛽ {filteredBunks.length} Petrol Bunks Found
             </Text>
-            <Text className="text-gray-400 text-xs text-center mt-1">
+            {/* <Text className="text-gray-400 text-xs text-center mt-1">
               Drag up for full list
-            </Text>
+            </Text> */}
           </View>
 
           <BottomSheetFlatList
@@ -388,7 +389,7 @@ export default function MapScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 className={`flex-row items-center py-3 px-1 rounded-xl ${
-                  selectedBunk?.place_id === item.place_id ? 'bg-blue-50' : ''
+                  selectedBunk?.place_id === item.place_id ? 'bg-blue-100' : ''
                 }`}
                 onPress={() => handleBunkPress(item)}
                 activeOpacity={0.7}
@@ -449,7 +450,7 @@ export default function MapScreen() {
                 No petrol bunks found
               </Text>
               <Text className="text-gray-400 text-xs mt-1 text-center">
-                Try a different route or increase the search radius in config.js
+                Try a different route.
               </Text>
             </View>
           </View>
