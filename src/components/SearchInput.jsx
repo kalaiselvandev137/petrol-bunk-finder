@@ -135,13 +135,13 @@ export default function SearchInput({
   return (
     <View className="relative mb-1">
       {/* Input row */}
-      <View className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+      <View className="flex-row items-center bg-[#F7F9FC] border border-[#DCE6F4] rounded-2xl px-4 py-3">
         {leftIcon && <View className="mr-3">{leftIcon}</View>}
 
         <TextInput
-          className="flex-1 text-gray-800 text-base"
+          className="flex-1 text-[#0B2559] text-base"
           placeholder={placeholder}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#9AA9C2"
           value={query}
           onChangeText={handleChangeText}
           onFocus={handleFocus}
@@ -151,7 +151,7 @@ export default function SearchInput({
 
         {/* Loading indicator */}
         {loading && (
-          <ActivityIndicator size="small" color="#3B82F6" className="ml-2" />
+          <ActivityIndicator size="small" color="#0A8F8F" style={{ marginLeft: 8 }} />
         )}
 
         {/* Cancel button */}
@@ -168,20 +168,23 @@ export default function SearchInput({
 
               onClear?.();
             }}
-            className="ml-2 w-7 h-7 rounded-full bg-gray-200 items-center justify-center"
+            className="ml-2 w-7 h-7 rounded-full bg-[#E3EBF6] items-center justify-center"
             activeOpacity={0.7}
           >
-            <Text className="text-gray-500 text-lg font-bold leading-5">×</Text>
+            <Text className="text-[#5B6B8C] text-lg font-bold leading-5">×</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Recent search history dropdown (shown when focused + empty) */}
       {showHistoryDropdown && (
-        <View className="absolute top-14 left-0 right-0 z-50 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <View className="flex-row items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100">
-            <Text className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Recent
+        <View
+          className="absolute top-14 left-0 right-0 z-50 bg-white rounded-2xl border border-[#E3EBF6] overflow-hidden"
+          style={{ elevation: 8 }}
+        >
+          <View className="flex-row items-center justify-between px-4 py-2 bg-[#F4F7FB] border-b border-[#E3EBF6]">
+            <Text className="text-xs font-semibold text-[#5B6B8C]">
+              Recent searches
             </Text>
             {onClearHistory && (
               <TouchableOpacity onPress={() => onClearHistory()}>
@@ -198,7 +201,7 @@ export default function SearchInput({
             renderItem={({ item, index }) => (
               <View
                 className={`flex-row items-center px-4 py-3 ${
-                  index < history.length - 1 ? 'border-b border-gray-100' : ''
+                  index < history.length - 1 ? 'border-b border-[#EEF3FA]' : ''
                 }`}
               >
                 <TouchableOpacity
@@ -208,7 +211,7 @@ export default function SearchInput({
                 >
                   <Text className="text-base mr-2">🕘</Text>
                   <Text
-                    className="flex-1 text-gray-700 text-sm"
+                    className="flex-1 text-[#0B2559] text-sm"
                     numberOfLines={2}
                   >
                     {item.address}
@@ -220,7 +223,7 @@ export default function SearchInput({
                     className="ml-3 px-2"
                     onPress={() => onHistoryRemove(item.address)}
                   >
-                    <Text className="text-gray-400 text-lg">×</Text>
+                    <Text className="text-[#9AA9C2] text-lg">×</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -231,7 +234,10 @@ export default function SearchInput({
 
       {/* Place autocomplete suggestions dropdown (shown while typing) */}
       {showSuggestionsDropdown && (
-        <View className="absolute top-14 left-0 right-0 z-50 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <View
+          className="absolute top-14 left-0 right-0 z-50 bg-white rounded-2xl border border-[#E3EBF6] overflow-hidden"
+          style={{ elevation: 8 }}
+        >
           <FlatList
             data={suggestions}
             keyExtractor={(item) => item.place_id}
@@ -240,15 +246,15 @@ export default function SearchInput({
             renderItem={({ item, index }) => (
               <TouchableOpacity
                 className={`px-4 py-3 ${
-                  index < suggestions.length - 1 ? 'border-b border-gray-100' : ''
+                  index < suggestions.length - 1 ? 'border-b border-[#EEF3FA]' : ''
                 }`}
                 onPress={() => handleSelectSuggestion(item)}
                 activeOpacity={0.7}
               >
-                <Text className="text-gray-800 text-sm font-medium" numberOfLines={1}>
+                <Text className="text-[#0B2559] text-sm font-medium" numberOfLines={1}>
                   {item.structured_formatting?.main_text || item.description}
                 </Text>
-                <Text className="text-gray-400 text-xs mt-0.5" numberOfLines={1}>
+                <Text className="text-[#7A8AA8] text-xs mt-0.5" numberOfLines={1}>
                   {item.structured_formatting?.secondary_text || ''}
                 </Text>
               </TouchableOpacity>

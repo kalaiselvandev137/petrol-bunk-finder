@@ -203,5 +203,11 @@ export function useDirections() {
     }
   }, []);
 
-  return { fetchRoute, routeCoords, waypointCoords, duration, distance, loading, error };
+  const clearRoute = useCallback(() => {
+    setRouteCoords([]);
+    setDuration('');
+    setDistance('');
+  }, []);
+
+  return { fetchRoute, clearRoute, routeCoords, waypointCoords, duration, distance, loading, error };
 }

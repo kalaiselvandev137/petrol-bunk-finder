@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useState } from "react";
 import apiurl from "../services/apiendpoint";
+import { stopLocationTask } from "../services/locationTask";
+import { endTrackingSession } from "../services/trackingApi";
 
 const AuthContext = createContext(null);
 
@@ -73,6 +75,12 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    try {
+      await stopLocationTask();
+      await endTrackingSession(); // uploads leftovers + closes the session while the token is still valid
+    } catch (e) {
+      console.warn("Tracking cleanup failed", e);
+    }
     await AsyncStorage.removeItem("auth_user");
     await AsyncStorage.removeItem("auth_token");
     setUser(null);

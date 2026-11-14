@@ -1,3 +1,5 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -17,18 +19,33 @@ export default function RouteMap({
   bunks = [],
   onBunkPress,
   selectedBunkId,
+  onRegionChangeComplete,
+  fitTo,
 }) {
   const mapRef = useRef(null);
   const [mapType, setMapType] = useState('standard');
+  const router = useRouter();
+  
+  // Get dealer parameters from route
+  const params = useLocalSearchParams();
+  const isDealerRoute = !!params?.dealerName;
+
+  // A tapped bunk always wins; otherwise show the dealer marker for dealer routes
+  const finalDestination = destination?.isBunk
+    ? destination
+    : isDealerRoute
+    ? {
+        ...destination,
+        isDealerMarker: true,
+        dealerName: params.dealerName,
+        address: params.dealerAddress || destination?.address,
+      }
+    : destination;
 
   useEffect(() => {
     if (!mapRef.current) return;
 
     if (routeCoords.length > 0) {
-      // console.log('RouteMap: Fitting to', routeCoords.length, 'coordinates');
-      // console.log('First coord:', routeCoords[0]);
-      // console.log('Last coord:', routeCoords[routeCoords.length - 1]);
-
       setTimeout(() => {
         try {
           // Validate coordinates before fitting
@@ -51,11 +68,25 @@ export default function RouteMap({
     }
   }, [routeCoords]);
 
+  // Zoom to a chosen area (state / district): { key, coords: [{latitude, longitude}] }
+  useEffect(() => {
+    if (!fitTo?.coords?.length || !mapRef.current) return;
+    if (fitTo.coords.length === 1) {
+      mapRef.current.animateToRegion(
+        { ...fitTo.coords[0], latitudeDelta: 0.08, longitudeDelta: 0.08 },
+        500
+      );
+    } else {
+      mapRef.current.fitToCoordinates(fitTo.coords, {
+        edgePadding: { top: 220, right: 50, bottom: 300, left: 50 },
+        animated: true,
+      });
+    }
+  }, [fitTo?.key]);
+
   const changeMapType = () => {
     const currentIndex = MAP_TYPES.findIndex((item) => item.type === mapType);
-
     const nextIndex = (currentIndex + 1) % MAP_TYPES.length;
-
     setMapType(MAP_TYPES[nextIndex].type);
   };
 
@@ -74,100 +105,107 @@ export default function RouteMap({
       };
 
   return (
-    <View className="flex-1">
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={{ flex: 1 }}
-        initialRegion={initialRegion}
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsTraffic={false}
-        mapType={mapType}
-      >
-        {/* Route polyline */}
-       {routeCoords && routeCoords.length > 0 && (
-        <Polyline
-            coordinates={routeCoords
-              .map((c) => ({
-                latitude: typeof c.latitude === 'number' ? c.latitude : parseFloat(c.latitude),
-                longitude: typeof c.longitude === 'number' ? c.longitude : parseFloat(c.longitude),
-              }))
-              .filter((c) => !Number.isNaN(c.latitude) && !Number.isNaN(c.longitude))}
-            strokeColor="#3B82F6"
-            strokeWidth={8}
-            tappable={false}
-            zIndex={1}
-          />
-        )}
+    <>
+      <StatusBar style="white" />
+      <View className="flex-1">
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={{ flex: 1 }}
+          initialRegion={initialRegion}
+          showsUserLocation
+          showsMyLocationButton={false}
+          showsTraffic={false}
+          mapType={mapType}
+          onRegionChangeComplete={onRegionChangeComplete}
+        >
+          {/* Route polyline */}
+          {routeCoords && routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords
+                .map((c) => ({
+                  latitude: typeof c.latitude === 'number' ? c.latitude : parseFloat(c.latitude),
+                  longitude: typeof c.longitude === 'number' ? c.longitude : parseFloat(c.longitude),
+                }))
+                .filter((c) => !Number.isNaN(c.latitude) && !Number.isNaN(c.longitude))}
+              strokeColor="#3B82F6"
+              strokeWidth={8}
+              tappable={false}
+              zIndex={1}
+            />
+          )}
 
-        {/* ========== ORIGIN MARKER (3D style) ========== */}
-        {origin?.coords && (
-          <Marker
-            coordinate={{
-              latitude: parseFloat(origin.coords.latitude),
-              longitude: parseFloat(origin.coords.longitude),
-            }}
-            title="From"
-            description={origin.address}
-            anchor={{ x: 0.5, y: 1 }}
-            zIndex={10}
-          >
-            <View className="items-center">
-              <View className="w-12 h-12 rounded-full bg-green-500 border-4 border-white items-center justify-center shadow-lg">
-                <Text className="text-2xl">📍</Text>
+          {/* ========== ORIGIN MARKER (3D style) ========== */}
+          {origin?.coords && (
+            <Marker
+              coordinate={{
+                latitude: parseFloat(origin.coords.latitude),
+                longitude: parseFloat(origin.coords.longitude),
+              }}
+              title="Current Location"
+              description={origin.address}
+              anchor={{ x: 0.5, y: 1 }}
+              zIndex={10}
+            >
+              <View className="items-center">
+                <View className="w-12 h-12 rounded-full bg-green-500 border-4 border-white items-center justify-center shadow-lg">
+                  <Text className="text-2xl">📍</Text>
+                </View>
+                <View className="w-3 h-3 bg-green-500 rotate-45 -mt-1.5" />
               </View>
-              <View className="w-3 h-3 bg-green-500 rotate-45 -mt-1.5" />
-            </View>
-          </Marker>
-        )}
+            </Marker>
+          )}
 
-        {/* ========== DESTINATION MARKER (3D style) ========== */}
-        {destination?.coords && (
-          <Marker
-            coordinate={{
-              latitude: parseFloat(destination.coords.latitude),
-              longitude: parseFloat(destination.coords.longitude),
-            }}
-            title={destination.isBunk ? 'Selected Bunk' : 'To'}
-            description={destination.address}
-            anchor={{ x: 0.5, y: 1 }}
-            zIndex={10}
-          >
-            <View className="items-center">
-              <View
-                className={`w-12 h-12 rounded-full border-4 border-white items-center justify-center shadow-lg ${
-                  destination.isBunk ? 'bg-orange-500' : 'bg-red-500'
-                }`}
-              >
-                <Text className="text-2xl">{destination.isBunk ? '⛽' : '🏁'}</Text>
+          {/* ========== DESTINATION MARKER - Handles both dealer and bunk ========== */}
+          {finalDestination?.coords && (
+            <Marker
+              coordinate={{
+                latitude: parseFloat(finalDestination.coords.latitude),
+                longitude: parseFloat(finalDestination.coords.longitude),
+              }}
+              title={finalDestination.isDealerMarker ? 'Dealer' : 'Selected Bunk'}
+              description={finalDestination.address}
+              anchor={{ x: 0.5, y: 1 }}
+              zIndex={10}
+            >
+              <View className="items-center">
+                <View
+                  className={`w-12 h-12 rounded-full border-4 border-white items-center justify-center shadow-lg ${
+                    finalDestination.isDealerMarker ? 'bg-purple-500' : 'bg-orange-500'
+                  }`}
+                >
+                  <Text className="text-2xl">
+                    {finalDestination.isDealerMarker ? '🏢' : '⛽'}
+                  </Text>
+                </View>
+                <View
+                  className={`w-3 h-3 rotate-45 -mt-1.5 ${
+                    finalDestination.isDealerMarker ? 'bg-purple-500' : 'bg-orange-500'
+                  }`}
+                />
               </View>
-              <View
-                className={`w-3 h-3 rotate-45 -mt-1.5 ${
-                  destination.isBunk ? 'bg-orange-500' : 'bg-red-500'
-                }`}
-              />
-            </View>
-          </Marker>
-        )}
+            </Marker>
+          )}
 
-        {/* Petrol bunk markers (skip the currently selected one) */}
-        {bunks && bunks.length > 0 && (
-          bunks
-            .filter((bunk) => bunk.place_id !== selectedBunkId)
-            .map((bunk) => <BunkMarker key={bunk.place_id} bunk={bunk} onPress={onBunkPress} />)
-        )}
-      </MapView>
+          {/* Petrol bunk markers (skip the currently selected one) */}
+          {bunks && bunks.length > 0 && (
+            bunks
+              .filter((bunk) => bunk.place_id !== selectedBunkId)
+              .map((bunk) => <BunkMarker key={bunk.place_id} bunk={bunk} onPress={onBunkPress} />)
+          )}
+        </MapView>
 
-    <TouchableOpacity
-      className="absolute bottom-44 right-4 z-20 w-12 h-12 bg-white border border-blue-300 rounded-full shadow-lg items-center justify-center"
-      onPress={changeMapType}
-      activeOpacity={0.8}
-    >
-      <Text className="text-white text-2xl font-bold text-center ">
-        {MAP_TYPES.find((item) => item.type === mapType)?.label}
-      </Text>
-    </TouchableOpacity>
-    </View>
+        {/* Map Type Toggle Button */}
+        <TouchableOpacity
+          className="absolute bottom-44 right-4 z-20 w-12 h-12 bg-white border border-blue-300 rounded-full shadow-lg items-center justify-center"
+          onPress={changeMapType}
+          activeOpacity={0.8}
+        >
+          <Text className="text-white text-2xl font-bold text-center ">
+            {MAP_TYPES.find((item) => item.type === mapType)?.label}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </>
   );
 }

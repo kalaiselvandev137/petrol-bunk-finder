@@ -1,9 +1,30 @@
+import { Ionicons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
-import { Image } from 'react-native';
+import { View } from 'react-native';
 
-function TabIcon({ source, focused }) {
+// FuelPay palette
+const NAVY = '#0B2559';
+const BLUE = '#0A5BFF';
+const MINT = '#7DF3E6';
+const MUTED = '#8FA3C7';
+
+function TabIcon({ focused, children }) {
   return (
-    <Image source={source} style={{width: 28,height: 28}} resizeMode="contain"/>
+    <View
+      style={{
+        width: 50,
+        height: 30,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: focused ? BLUE : 'transparent',
+      }}
+    >
+      {children}
+    </View>
   );
 }
 
@@ -12,44 +33,66 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-
-        tabBarActiveTintColor: '#3B82F6',
-        tabBarInactiveTintColor: '#9CA3AF',
-
+        tabBarActiveTintColor: MINT,
+        tabBarInactiveTintColor: MUTED,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
+          backgroundColor: NAVY,
+          height: 68,
+          paddingTop: 8,
+          paddingBottom: 10,
+          borderTopWidth: 0,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          elevation: 12,
         },
-
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="index"
-        options={{title: 'Find Bunks',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon source={require('../../../assets/images/petrol-maps/3d-navigation.png')} focused={focused}/>
-          ),
-        }}
-      />
-
-      <Tabs.Screen name="favorites"
+      <Tabs.Screen
+        name="index"
         options={{
-          title: 'Sales',
+          title: 'Home',
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={require('../../../assets/images/petrol-maps/advertising.png')} focused={focused}/>
+            <TabIcon focused={focused}>
+              <Ionicons name="home" size={20} color={focused ? '#FFFFFF' : MUTED} />
+            </TabIcon>
           ),
         }}
       />
 
-      <Tabs.Screen name="settings"
+      <Tabs.Screen
+        name="dpdcollection"
+        options={{
+          title: 'DPD Collection',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused}>
+              <FontAwesome6 name="indian-rupee-sign" size={18} color={focused ? '#FFFFFF' : MUTED} />
+            </TabIcon>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="fieldupdates"
+        options={{
+          title: 'Field Updates',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused}>
+              <MaterialIcons name="update" size={22} color={focused ? '#FFFFFF' : MUTED} />
+            </TabIcon>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={require('../../../assets/images/petrol-maps/3d-setting.png')} focused={focused}/>
+            <TabIcon focused={focused}>
+              <Feather name="settings" size={20} color={focused ? '#FFFFFF' : MUTED} />
+            </TabIcon>
           ),
         }}
       />
