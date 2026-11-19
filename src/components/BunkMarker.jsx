@@ -1,15 +1,22 @@
+import { memo, useEffect, useState } from 'react';
 import { Image, Text, View } from 'react-native';
 import { Callout, Marker } from 'react-native-maps';
 import { getBunkCoords } from '../constants/bunkUtils';
+import { getOmcLogo } from '../constants/omcLogos';
 
 // Marker colours: normal = grey ring, highway = amber ring + "NH" badge, dealer = purple filled + star
 const STYLE = {
   normal: { ring: '#9CA3AF', bg: '#FFFFFF' },
   highway: { ring: '#F59E0B', bg: '#FFF4D6' },
-  dealer: { ring: '#7C3AED', bg: '#EDE9FE' },
+  dealer: { ring: '#7C3AED', bg: '#FFFFFF' },
 };
 
-export default function BunkMarker({ bunk, onPress }) {
+function BunkMarker({ bunk, onPress }) {
+  const [track, setTrack] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setTrack(false), 800); // let the image load, then freeze
+    return () => clearTimeout(t);
+  }, []);
   const coord = getBunkCoords(bunk);
   if (!coord) return null;
 
@@ -17,9 +24,12 @@ export default function BunkMarker({ bunk, onPress }) {
   const s = STYLE[kind];
   const size = bunk.isDealer ? 40 : bunk.isHighway ? 38 : 32;
   const d = bunk.dealer;
+  const logo = bunk.isDealer ? getOmcLogo(d?.OMC) : null;
+  const imgSource = logo || require('../../assets/images/petrol-maps/petrol-pump.png');
+  const imgSize = logo ? size - 8 : size - 14; // logos look better a bit larger
 
   return (
-    <Marker coordinate={coord} zIndex={bunk.isDealer ? 5 : bunk.isHighway ? 3 : 1}>
+    <Marker coordinate={coord} tracksViewChanges={track} zIndex={bunk.isDealer ? 5 : bunk.isHighway ? 3 : 1}>
       {/* Custom marker pin */}
       <View style={{ width: size + 8, height: size + 8, alignItems: 'center', justifyContent: 'center' }}>
         <View
@@ -34,11 +44,11 @@ export default function BunkMarker({ bunk, onPress }) {
             justifyContent: 'center',
           }}
         >
-          <Image
-            source={require('../../assets/images/petrol-maps/petrol-pump.png')}
-            style={{ width: size - 14, height: size - 14 }}
-            resizeMode="contain"
-          />
+        <Image
+          source={imgSource}
+          style={{ width: imgSize, height: imgSize, borderRadius: logo ? (imgSize / 2) : 0 }}
+          resizeMode="contain"
+        />
         </View>
 
         {bunk.isDealer && (
@@ -134,3 +144,5 @@ export default function BunkMarker({ bunk, onPress }) {
     </Marker>
   );
 }
+
+export default memo(BunkMarker, (a, b) => a.bunk === b.bunk);

@@ -28,6 +28,10 @@ function normalizeDealer(d) {
     dealer: d,
     state: titleCase(d.Current_Address_State) || null,
     district: titleCase(d.District) || null, // saved by the backend
+    searchText: [
+      d.Business_Name, d.OMC, d.Lead_ID, d.Primary_Mobile,
+      d.Current_Address_Locality, d.District, d.Current_Address_State,
+    ].filter(Boolean).join(' ').toLowerCase(),
   };
   dealer.isHighway = isHighwayBunk(dealer);
   return dealer;
@@ -49,10 +53,6 @@ export function useDealerBunks() {
       const json = await res.json();
       const rows = Array.isArray(json) ? json : json.resdata || json.data || [];
       const mapped = rows.map(normalizeDealer);
-      console.log(
-        `[dealers] status=${res.status} rows=${rows.length} withCoords=${mapped.filter(Boolean).length}`,
-        res.ok ? '' : json
-      );
       setDealerBunks(mapped.filter(Boolean));
       setMissingCoords(mapped.filter((m) => !m).length);
     } catch (e) {

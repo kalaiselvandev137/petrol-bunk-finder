@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { getBunkCoords } from '../constants/bunkUtils';
 import BunkMarker from './BunkMarker';
 
 const MAP_TYPES = [
@@ -11,6 +12,8 @@ const MAP_TYPES = [
   { id: 'hybrid', label: '🔀', type: 'hybrid' },
   { id: 'terrain', label: '⛰️', type: 'terrain' },
 ];
+
+const MAX_MARKERS = 120;
 
 export default function RouteMap({
   routeCoords,
@@ -24,8 +27,39 @@ export default function RouteMap({
 }) {
   const mapRef = useRef(null);
   const [mapType, setMapType] = useState('standard');
+  const [viewRegion, setViewRegion] = useState(null);
   const router = useRouter();
   
+  // stable callbacks so memoized markers never re-render
+  const pressRef = useRef(onBunkPress);
+  useEffect(() => { pressRef.current = onBunkPress; }, [onBunkPress]);
+  const stablePress = useCallback((b) => pressRef.current?.(b), []);
+
+  const handleRegionComplete = useCallback((r) => {
+    setViewRegion(r);
+    onRegionChangeComplete?.(r);
+  }, [onRegionChangeComplete]);
+
+  const visibleBunks = useMemo(() => {
+    const list = bunks.filter((b) => b.place_id !== selectedBunkId);
+    if (!viewRegion) return list.slice(0, MAX_MARKERS);
+    const latPad = viewRegion.latitudeDelta * 0.6;
+    const lngPad = viewRegion.longitudeDelta * 0.6;
+    const out = [];
+    for (const b of list) {
+      const c = getBunkCoords(b);
+      if (
+        c &&
+        Math.abs(c.latitude - viewRegion.latitude) <= latPad &&
+        Math.abs(c.longitude - viewRegion.longitude) <= lngPad
+      ) {
+        out.push(b);
+        if (out.length >= MAX_MARKERS) break; // list is already sorted nearest/dealers first
+      }
+    }
+    return out;
+  }, [bunks, selectedBunkId, viewRegion]);
+
   // Get dealer parameters from route
   const params = useLocalSearchParams();
   const isDealerRoute = !!params?.dealerName;
@@ -117,7 +151,7 @@ export default function RouteMap({
           showsMyLocationButton={false}
           showsTraffic={false}
           mapType={mapType}
-          onRegionChangeComplete={onRegionChangeComplete}
+          onRegionChangeComplete={handleRegionComplete}
         >
           {/* Route polyline */}
           {routeCoords && routeCoords.length > 0 && (
@@ -188,11 +222,9 @@ export default function RouteMap({
           )}
 
           {/* Petrol bunk markers (skip the currently selected one) */}
-          {bunks && bunks.length > 0 && (
-            bunks
-              .filter((bunk) => bunk.place_id !== selectedBunkId)
-              .map((bunk) => <BunkMarker key={bunk.place_id} bunk={bunk} onPress={onBunkPress} />)
-          )}
+            {visibleBunks.map((bunk) => (
+              <BunkMarker key={bunk.place_id} bunk={bunk} onPress={stablePress} />
+            ))}
         </MapView>
 
         {/* Map Type Toggle Button */}

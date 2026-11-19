@@ -2,16 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StatusBar,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Image, Keyboard, Modal, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import RouteMap from '../components/RouteMap';
 import { PETROL_BRANDS, matchesBrand } from '../constants/brands';
 import {
@@ -21,6 +12,7 @@ import {
   isHighwayBunk,
 } from '../constants/bunkUtils';
 import { BUNK_SEARCH_RADIUS } from '../constants/config';
+import { getOmcLogo } from '../constants/omcLogos';
 import { useDealerBunks } from '../hooks/useDealerBunks';
 import { useDirections } from '../hooks/useDirections';
 import { useLocation } from '../hooks/useLocation';
@@ -55,6 +47,24 @@ export default function MapScreen() {
   const { getCurrentLocation } = useLocation();
   const [deviceOrigin, setDeviceOrigin] = useState(null);
   const [locating, setLocating] = useState(isAll && !params.fromLat);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(searchText.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [searchText]);
+
+  const queryTerms = useMemo(() => query.split(/\s+/).filter(Boolean), [query]);
+
+  const closeSearch = () => {
+    Keyboard.dismiss();
+    setSearchOpen(false);
+    setSearchText('');
+    setQuery('');
+  };
 
   useEffect(() => {
     if (!isAll || params.fromLat) return;
@@ -116,11 +126,11 @@ export default function MapScreen() {
     searchBunks,
     searchArea,
     bunks,
-    loading: bunksLoading,
     error: bunksError,
+    loading: bunksLoading
   } = usePetrolBunks();
 
-  const { dealerBunks, missingCoords } = useDealerBunks();
+  const { dealerBunks, missingCoords, loading: dealersLoading } = useDealerBunks();
 
   const [selectedBunk, setSelectedBunk] = useState(null);
   const [selectedBrands, setSelectedBrands] = useState([]);
@@ -171,6 +181,10 @@ export default function MapScreen() {
         if (selectedState && b.state !== selectedState) return false;
         if (selectedDistrict && b.district !== selectedDistrict) return false;
       }
+      if (queryTerms.length) {
+        if (!b.isDealer) return false;
+        if (!queryTerms.every((t) => b.searchText?.includes(t))) return false;
+      }
       const brandText = b.isDealer ? `${b.name} ${b.dealer?.OMC || ''}` : b.name;
       return matchesBrand(brandText, selectedBrands);
     });
@@ -185,10 +199,21 @@ export default function MapScreen() {
     // route mode: dealers first, then highway bunks, then the rest
     const rank = (b) => (b.isDealer ? 0 : b.isHighway ? 1 : 2);
     return [...list].sort((a, b) => rank(a) - rank(b));
-  }, [allBunks, layer, selectedBrands, isAll, origin.coords, selectedState, selectedDistrict]);
+  }, [allBunks, layer, selectedBrands, isAll, origin.coords, selectedState, selectedDistrict, queryTerms]);
 
   const dealerCount = useMemo(() => filteredBunks.filter((b) => b.isDealer).length, [filteredBunks]);
   const highwayCount = useMemo(() => filteredBunks.filter((b) => b.isHighway).length, [filteredBunks]);
+
+  const suggestions = useMemo(
+    () => (queryTerms.length ? filteredBunks.slice(0, 6) : []),
+    [filteredBunks, queryTerms]
+  );
+
+  const pickDealer = (d) => {
+    Keyboard.dismiss();
+    const c = getBunkCoords(d);
+    if (c) setFitTo({ key: Date.now(), coords: [c] });
+  };
 
   // ---- state / district picker (from the dealers' State and District fields) ----
   const stateOptions = useMemo(() => {
@@ -233,7 +258,7 @@ export default function MapScreen() {
   };
 
   // In all-bunks mode, bunk loading only shows a small pill so the map stays usable
-  const isLoading = locating || routeLoading || (bunksLoading && !isAll);
+  const isLoading = locating || routeLoading || dealersLoading || (bunksLoading && !isAll);
 
   // Active destination shown on map / header (null in "all" mode until a bunk is tapped)
   const activeDestination = useMemo(() => {
@@ -457,7 +482,7 @@ export default function MapScreen() {
           <View className="bg-white rounded-3xl px-8 py-6 shadow-lg items-center">
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text className="text-gray-700 font-semibold mt-3">
-              {locating ? 'Getting your location...' : routeLoading ? 'Finding route...' : 'Searching for bunks...'}
+              {locating ? 'Getting your location...' : dealersLoading ? 'Loading dealers...' : routeLoading ? 'Finding route...' : 'Searching for bunks...'}
             </Text>
             <Text className="text-gray-400 text-xs mt-1">This may take a few seconds</Text>
           </View>
@@ -480,13 +505,16 @@ export default function MapScreen() {
       )}
 
       {/* Layer + brand filter chips */}
-      {showChips && (
+      {showChips && !searchOpen && (
         <View className="absolute top-[140px] left-0 right-0 z-10 px-4">
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 8 }}
           >
+            <TouchableOpacity onPress={() => setSearchOpen(true)} className="px-3 py-1.5 rounded-full border bg-white border-blue-300">
+              <Text className="text-xs font-semibold text-blue-600">🔍 Search</Text>
+            </TouchableOpacity>
             {LAYERS.map((l) => {
               const active = layer === l.id;
               return (
@@ -506,7 +534,7 @@ export default function MapScreen() {
                 </TouchableOpacity>
               );
             })}
-
+            
             {isAll && stateOptions.length > 0 && (
               <TouchableOpacity
                 onPress={() => setAreaOpen(true)}
@@ -542,8 +570,63 @@ export default function MapScreen() {
         </View>
       )}
 
+      {searchOpen && (
+        <View className="absolute top-[140px] left-0 right-0 z-30 px-4">
+          <View className="flex-row items-center bg-white rounded-2xl px-3 border border-blue-200 shadow">
+            <Text className="mr-2">🔍</Text>
+            <TextInput
+              className="flex-1 text-sm text-gray-800 py-2.5"
+              placeholder="Dealer, OMC, area, Lead ID..."
+              placeholderTextColor="#9CA3AF"
+              value={searchText}
+              onChangeText={setSearchText}
+              autoFocus
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {!!searchText && <Text className="text-gray-500 text-xs mr-3">{dealerCount}</Text>}
+            <TouchableOpacity onPress={closeSearch} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text className="text-gray-500 text-base">✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {!!queryTerms.length && (
+            <View className="bg-white rounded-2xl mt-2 border border-gray-100 overflow-hidden shadow">
+              {suggestions.length === 0 ? (
+                <Text className="text-gray-500 text-xs text-center py-4">No dealers match "{searchText}"</Text>
+              ) : (
+                suggestions.map((d, i) => (
+                  <View
+                    key={d.place_id}
+                    className={`flex-row items-center px-3 py-2.5 ${i < suggestions.length - 1 ? 'border-b border-gray-100' : ''}`}
+                  >
+                    <TouchableOpacity className="flex-1 pr-2" onPress={() => pickDealer(d)} activeOpacity={0.7}>
+                      <Text className="text-gray-900 text-sm font-semibold" numberOfLines={1}>{d.name}</Text>
+                      <Text className="text-gray-500 text-xs mt-0.5" numberOfLines={1}>
+                        {d.dealer?.OMC ? `${d.dealer.OMC} · ` : ''}{d.district || d.vicinity}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => { Keyboard.dismiss(); handleBunkPress(d); }}
+                      className="bg-blue-500 rounded-full px-3 py-1.5"
+                    >
+                      <Text className="text-white text-[11px] font-bold">Route</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+              {filteredBunks.length > suggestions.length && (
+                <Text className="text-gray-400 text-[11px] text-center py-2 bg-gray-50">
+                  +{filteredBunks.length - suggestions.length} more shown on the map and list below
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* All-bunks status pill */}
-      {isAll && !selectedBunk && !isLoading && (zoomHint || bunksLoading || !!bunksError) && (
+      {isAll && !selectedBunk && !isLoading && !searchOpen && (zoomHint || bunksLoading || !!bunksError) && (
         <View pointerEvents="none" className="absolute top-[186px] left-0 right-0 z-10 items-center">
           <View className="bg-white rounded-full px-4 py-2 shadow border border-blue-200 flex-row items-center">
             {bunksLoading && <ActivityIndicator size="small" color="#3B82F6" />}
@@ -648,7 +731,7 @@ export default function MapScreen() {
       )}
 
       {/* Legend */}
-      {!isLoading && (allBunks.length > 0 || dealerBunks.length > 0) && (
+      {/* {!isLoading && (allBunks.length > 0 || dealerBunks.length > 0) && (
         <View
           pointerEvents="none"
           className="absolute bottom-44 left-4 z-10 bg-white/95 rounded-xl px-3 py-2 border border-gray-200"
@@ -672,7 +755,7 @@ export default function MapScreen() {
             <Text className="text-gray-400 text-[10px] mt-1.5">{missingCoords} dealers have no location</Text>
           )}
         </View>
-      )}
+      )} */}
 
       {/* ========== Draggable Bottom Sheet ========== */}
       {!isLoading && filteredBunks.length > 0 && (
@@ -699,6 +782,10 @@ export default function MapScreen() {
 
           <BottomSheetFlatList
             data={filteredBunks}
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             keyExtractor={(item) => item.place_id}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
             ItemSeparatorComponent={() => <View className="h-px bg-gray-100 my-2" />}
@@ -716,7 +803,11 @@ export default function MapScreen() {
                     backgroundColor: item.isDealer ? '#EDE9FE' : item.isHighway ? '#FFF4D6' : '#FFEDD5',
                   }}
                 >
-                  <Text className="text-xl">{item.isDealer ? '★' : '⛽'}</Text>
+                  {item.isDealer && getOmcLogo(item.dealer?.OMC) ? (
+                    <Image source={getOmcLogo(item.dealer.OMC)} style={{ width: 26, height: 26 }} resizeMode="contain" />
+                  ) : (
+                    <Text className="text-xl">{item.isDealer ? '★' : '⛽'}</Text>
+                  )}
                 </View>
 
                 <View className="flex-1">
